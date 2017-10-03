@@ -2,6 +2,8 @@ from binascii import hexlify, unhexlify
 from io import BytesIO
 from unittest import TestCase, skip
 
+from helper import h160_to_p2pkh_address, h160_to_p2sh_address
+
 
 OP_CODES = {
   0: 'OP_0',
@@ -243,10 +245,11 @@ class Script:
         '''Returns the address corresponding to the script'''
         sig_type = self.type()
         if sig_type == 'p2pkh':
-            pass
+            return h160_to_p2pkh_address(self.elements[2], testnet=testnet)
         elif sig_type == 'p2sh':
-            pass
-        raise NotImplementedError
+            return h160_to_p2sh_address(self.elements[1], testnet=testnet)
+        else:
+            return None
 
 
 class ScriptTest(TestCase):
@@ -279,7 +282,6 @@ class ScriptTest(TestCase):
         self.assertEqual(script_sig.sec_pubkey(index=0), unhexlify('022626e955ea6ea6d98850c994f9107b036b1334f18ca8830bfff1295d21cfdb70'))
         self.assertEqual(script_sig.sec_pubkey(index=1), unhexlify('03b287eaf122eea69030a0e9feed096bed8045c8b98bec453e1ffac7fbdbd4bb71'))
 
-    @skip('unimplemented')
     def test_address(self):
         script_raw = unhexlify('76a914338c84849423992471bffb1a54a8d9b1d69dc28a88ac')
         script_pubkey = Script.parse(script_raw)

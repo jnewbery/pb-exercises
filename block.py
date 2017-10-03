@@ -23,35 +23,47 @@ class Block:
     def parse(cls, s):
         '''Takes a byte stream and parses a block. Returns a Block object'''
         # version - 4 bytes, little endian
+        version = little_endian_to_int(s.read(4))
         # prev_block - 32 bytes, little endian
+        prev_block = s.read(32)[::-1]
         # merkle_root - 32 bytes, little endian
+        merkle_root = s.read(32)[::-1]
         # timestamp - 4 bytes, little endian
+        timestamp = little_endian_to_int(s.read(4))
         # bits - 4 bytes
+        bits = s.read(4)
         # nonce - 4 bytes
-        raise NotImplementedError
+        nonce = s.read(4)
+        return cls(version, prev_block, merkle_root, timestamp, bits, nonce)
 
     def serialize(self):
         '''Returns the 80 byte block header'''
-        raise NotImplementedError
+        result = int_to_little_endian(self.version, 4)
+        result += self.prev_block[::-1]
+        result += self.merkle_root[::-1]
+        result += int_to_little_endian(self.timestamp, 4)
+        result += self.bits
+        result += self.nonce
+        return result
 
     def hash(self):
         '''Returns the double-sha256 interpreted little endian of the block'''
-        raise NotImplementedError
+        return double_sha256(self.serialize())[::-1]
 
     def bip9(self):
         '''Returns whether this block is signaling readiness for BIP9'''
         # BIP9 is signalled if the top 3 bits are 001
-        raise NotImplementedError
+        return self.version >> 29 == 0b001
 
     def bip91(self):
         '''Returns whether this block is signaling readiness for BIP91'''
         # BIP91 is signalled if the top 5th bit from the right is 1
-        raise NotImplementedError
+        return (self.version >> 4) & 1 == 1
     
     def bip141(self):
         '''Returns whether this block is signaling readiness for BIP141'''
         # BIP91 is signalled if the top 2nd bit from the right is 1
-        raise NotImplementedError
+        return (self.version >> 1) & 1 == 1
 
     def target(self):
         '''Returns the proof-of-work target based on the bits'''
@@ -59,25 +71,29 @@ class Block:
         # the other three bytes are the coefficient.
         # the formula is:
         # coefficient * 2**(8*(exponent-3))
-        raise NotImplementedError
+        exponent = self.bits[-1]
+        coefficient = little_endian_to_int(self.bits[:-1])
+        return coefficient * 2**(8*(exponent - 3))
 
     def difficulty(self):
         '''Returns the block difficulty based on the bits'''
         # note difficulty is (target of lowest difficulty) / (self's target)
         # lowest difficulty has bits that equal 0xffff001d
-        raise NotImplementedError
+        exponent = 0x1d
+        minimum_target = 0xffff * 2**(8*(0x1d-3))
+        return minimum_target / self.target()
 
     def check_pow(self):
         '''Returns whether this block satisfies proof of work'''
         # You will need to get the hash of this block and interpret it
         # as an integer. If the hash of the block is lower, pow is good.
         # hint: int.from_bytes('', 'big')
-        raise NotImplementedError
+        s256 = self.hash()
+        return int.from_bytes(s256, 'big') < self.target()
 
 
 class BlockTest(TestCase):
 
-    @skip('unimplemented')
     def test_parse(self):
         block_raw = unhexlify('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)
@@ -91,14 +107,12 @@ class BlockTest(TestCase):
         self.assertEqual(block.bits, unhexlify('e93c0118'))
         self.assertEqual(block.nonce, unhexlify('a4ffd71d'))
 
-    @skip('unimplemented')
     def test_serialize(self):
         block_raw = unhexlify('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)
         block = Block.parse(stream)
         self.assertEqual(block.serialize(), block_raw)
 
-    @skip('unimplemented')
     def test_hash(self):
         block_raw = unhexlify('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)
@@ -106,7 +120,6 @@ class BlockTest(TestCase):
         self.assertEqual(block.hash(), unhexlify('0000000000000000007e9e4c586439b0cdbe13b1370bdd9435d76a644d047523'))
 
 
-    @skip('unimplemented')
     def test_bip9(self):
         block_raw = unhexlify('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)
@@ -117,7 +130,6 @@ class BlockTest(TestCase):
         block = Block.parse(stream)
         self.assertFalse(block.bip9())
 
-    @skip('unimplemented')
     def test_bip91(self):
         block_raw = unhexlify('1200002028856ec5bca29cf76980d368b0a163a0bb81fc192951270100000000000000003288f32a2831833c31a25401c52093eb545d28157e200a64b21b3ae8f21c507401877b5935470118144dbfd1')
         stream = BytesIO(block_raw)
@@ -128,7 +140,6 @@ class BlockTest(TestCase):
         block = Block.parse(stream)
         self.assertFalse(block.bip91())
 
-    @skip('unimplemented')
     def test_bip141(self):
         block_raw = unhexlify('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)
@@ -139,7 +150,6 @@ class BlockTest(TestCase):
         block = Block.parse(stream)
         self.assertFalse(block.bip141())
 
-    @skip('unimplemented')
     def test_target(self):
         block_raw = unhexlify('020000208ec39428b17323fa0ddec8e887b4a7c53b8c0a0a220cfd0000000000000000005b0750fce0a889502d40508d39576821155e9c9e3f5c3157f961db38fd8b25be1e77a759e93c0118a4ffd71d')
         stream = BytesIO(block_raw)
@@ -147,7 +157,6 @@ class BlockTest(TestCase):
         self.assertEqual(block.target(), 0x13ce9000000000000000000000000000000000000000000)
         self.assertEqual(int(block.difficulty()), 888171856257)
 
-    @skip('unimplemented')
     def test_check_pow(self):
         block_raw = unhexlify('04000000fbedbbf0cfdaf278c094f187f2eb987c86a199da22bbb20400000000000000007b7697b29129648fa08b4bcd13c9d5e60abb973a1efac9c8d573c71c807c56c3d6213557faa80518c3737ec1')
         stream = BytesIO(block_raw)
