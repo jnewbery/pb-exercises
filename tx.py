@@ -17,15 +17,17 @@ class Tx:
         '''Takes a byte stream and parses the transaction at the start
         return a Tx object
         '''
-        # s.read(n) will return n bytes
-        # s.read(1)[0] will return the next byte as an integer
-
-        # version has 4 bytes, little-endian
-        # num_inputs is 1 byte (not really, but we can learn about varint later)
-        # each input needs parsing
-        # num_outputs is 1 byte (again, varint, but we'll learn that later)
-        # locktime is 4 bytes, little-endian
-        raise NotImplementedError
+        version = little_endian_to_int(s.read(4))
+        num_inputs = s.read(1)[0]
+        tx_ins = []
+        for _ in range(num_inputs):
+            tx_ins.append(TxIn.parse(s))
+        num_outputs = s.read(1)[0]
+        tx_outs = []
+        for _ in range(num_outputs):
+            tx_outs.append(TxOut.parse(s))
+        locktime = little_endian_to_int(s.read(4))
+        return cls(version, tx_ins, tx_outs, locktime)
 
 
 class TxIn:
@@ -41,14 +43,13 @@ class TxIn:
         '''Takes a byte stream and parses the tx_input at the start
         return a TxIn object
         '''
-        # s.read(n) will return n bytes
-        # s.read(1)[0] will return the next byte as an integer
-
-        # prev_tx is 32 bytes, little endian
-        # prev_index is 4 bytes, little endian
-        # script_sig is a variable field (length followed by the data)
-        # sequence is 4 bytes, little-endian
-        raise NotImplementedError
+        # previous tx is little endian
+        prev_tx = s.read(32)[::-1]
+        prev_index = little_endian_to_int(s.read(4))
+        script_sig_length = s.read(1)[0]
+        script_sig = s.read(script_sig_length)
+        sequence = little_endian_to_int(s.read(4))
+        return cls(prev_tx, prev_index, script_sig, sequence)
 
 
 class TxOut:
@@ -62,24 +63,20 @@ class TxOut:
         '''Takes a byte stream and parses the tx_output at the start
         return a TxOut object
         '''
-        # s.read(n) will return n bytes
-        # s.read(1)[0] will return the next byte as an integer
-
-        # amount is 8 bytes, little endian
-        # script_pubkey is a variable field (length followed by the data)
-        raise NotImplementedError
+        amount = little_endian_to_int(s.read(8))
+        script_pubkey_length = s.read(1)[0]
+        script_pubkey = s.read(script_pubkey_length)
+        return cls(amount, script_pubkey)
 
     
 class TxTest(TestCase):
 
-    @skip('unimplemented')
     def test_parse_version(self):
         raw_tx = unhexlify('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
         stream = BytesIO(raw_tx)
         tx = Tx.parse(stream)
         self.assertEqual(tx.version, 1)
 
-    @skip('unimplemented')
     def test_parse_inputs(self):
         raw_tx = unhexlify('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
         stream = BytesIO(raw_tx)
@@ -92,7 +89,6 @@ class TxTest(TestCase):
         self.assertEqual(tx.tx_ins[0].script_sig, want)
         self.assertEqual(tx.tx_ins[0].sequence, 0xfffffffe)
 
-    @skip('unimplemented')
     def test_parse_outputs(self):
         raw_tx = unhexlify('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
         stream = BytesIO(raw_tx)
@@ -107,7 +103,6 @@ class TxTest(TestCase):
         want = unhexlify('76a9141c4bc762dd5423e332166702cb75f40df79fea1288ac')
         self.assertEqual(tx.tx_outs[1].script_pubkey, want)
 
-    @skip('unimplemented')
     def test_parse_locktime(self):
         raw_tx = unhexlify('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
         stream = BytesIO(raw_tx)

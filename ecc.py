@@ -556,7 +556,16 @@ class PrivateKey:
         return Signature(r, s)
 
     def wif(self, compressed=True, testnet=False):
-        raise NotImplementedError
+        if testnet:
+            prefix = b'\xef'
+        else:
+            prefix = b'\x80'
+        if compressed:
+            postfix = b'\x01'
+        else:
+            postfix = b''
+        binary = self.secret.to_bytes(32, 'big')
+        return encode_base58_checksum(prefix + binary + postfix)
 
 
 class PrivateKeyTest(TestCase):
@@ -567,7 +576,6 @@ class PrivateKeyTest(TestCase):
         sig = pk.sign(z)
         self.assertTrue(pk.point.verify(z, sig))
 
-    @skip('unimplemented')
     def test_wif(self):
         pk = PrivateKey(2**256-2**199)
         expected = 'L5oLkpV3aqBJ4BgssVAsax1iRa77G5CVYnv9adQ6Z87te7TyUdSC'
