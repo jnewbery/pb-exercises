@@ -77,13 +77,21 @@ def int_to_little_endian(n, length):
 def h160_to_p2pkh_address(h160, testnet=False):
     '''Takes a byte sequence hash160 and returns a p2pkh address string'''
     # p2pkh has a prefix of b'\x00' for mainnet, b'\xef' for testnet
-    raise NotImplementedError
+    if testnet:
+        prefix = b'\x6f'
+    else:
+        prefix = b'\x00'
+    return encode_base58_checksum(prefix + h160)
 
 
 def h160_to_p2sh_address(h160, testnet=False):
     '''Takes a byte sequence hash160 and returns a p2sh address string'''
     # p2sh has a prefix of b'\x05' for mainnet, b'\xc0' for testnet
-    raise NotImplementedError
+    if testnet:
+        prefix = b'\xc0'
+    else:
+        prefix = b'\x05'
+    return encode_base58_checksum(prefix + h160)
 
 
 class HelperTest(TestCase):
@@ -120,7 +128,6 @@ class HelperTest(TestCase):
         want = b'\x99\xc3\x98\x00\x00\x00\x00\x00'
         self.assertEqual(int_to_little_endian(n, 8), want)
 
-    @skip('unimplemented')
     def test_p2pkh_address(self):
         h160 = unhexlify('74d691da1574e6b3c192ecfb52cc8984ee7b6c56')
         want = '1BenRpVUFK65JFWcQSuHnJKzc4M8ZP8Eqa'
@@ -128,7 +135,6 @@ class HelperTest(TestCase):
         want = 'mrAjisaT4LXL5MzE81sfcDYKU3wqWSvf9q'
         self.assertEqual(h160_to_p2pkh_address(h160, testnet=True), want)
 
-    @skip('unimplemented')
     def test_p2sh_address(self):
         h160 = unhexlify('74d691da1574e6b3c192ecfb52cc8984ee7b6c56')
         want = '3CLoMMyuoDQTPRD3XYZtCvgvkadrAdvdXh'

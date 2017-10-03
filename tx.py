@@ -81,10 +81,20 @@ class Tx:
                 script_sig=b'',
                 sequence=tx_in.sequence,
             ))
-        # replace the input's scriptSig with the scriptPubKey
+        # determine how we need to sign from the scriptPubKey
         signing_input = alt_tx_ins[input_index]
-        signing_input.script_sig = Script.parse(
-            signing_input.script_pubkey(self.testnet))
+        script_pubkey = Script.parse(signing_input.script_pubkey(self.testnet))
+        sig_type = script_pubkey.type()
+        if sig_type == 'p2pkh':
+            # replace the input's scriptSig with the scriptPubKey
+            signing_input.script_sig = script_pubkey
+        elif sig_type == 'p2sh':
+            # replace the input's scriptSig with the RedeemScript
+            current_input = self.tx_ins[input_index]
+            signing_input.script_sig = Script.parse(
+                current_input.redeem_script())
+        else:
+            raise RuntimeError('no valid sig_type')
         alt_tx = self.__class__(
             version=self.version,
             tx_ins=alt_tx_ins,
@@ -96,23 +106,37 @@ class Tx:
 
     def verify_input(self, input_index):
         '''Returns whether the input has a valid signature'''
-        # get the relevant input
-        # get the point from the sec format
-        # get the input signature
-        # get the hash to sign
-        # verify the hash and signature are good
-        raise NotImplementedError
+        inp = self.tx_ins[input_index]
+        sigs_required = inp.script_sig.num_sigs_required()
+        for sig_num in range(sigs_required):
+            # get the point from the sec format
+            point = S256Point.parse(inp.sec_pubkey(index=sig_num))
+            # get the input signature
+            der, sighash = inp.der_signature(index=sig_num)
+            signature = Signature.parse(der)
+            # get the hash to sign
+            z = self.hash_to_sign(input_index, sighash)
+            # verify the hash and signature are good
+            if not point.verify(z, signature):
+                return False
+        return True
 
     def sign_input(self, input_index, private_key, sighash):
         '''Signs the input using the private key'''
         # get the hash to sign
+        z = self.hash_to_sign(input_index, sighash)
         # get der signature from private key
+        der = private_key.sign(z).der()
         # append the sighash, most likely SIGHASH_ALL
+        sig = der + bytes([sighash])
         # add the sec
+        sec = unhexlify(private_key.point.sec())
         # construct script_sig
+        script_sig = bytes([len(sig)]) + sig + bytes([len(sec)]) + sec
         # change input's script_sig
+        self.tx_ins[input_index].script_sig = Script.parse(script_sig)
         # return whether sig is valid
-        raise NotImplementedError
+        return self.verify_input(input_index)
 
 
 CACHE = {'75d7454b7010fa28b00f16cccb640b1756fd6e357c03a3b81b9d119505f47b56:0': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 1043341, 'addresses': ['1KhAyQ3kaRQptGwAZghHBjNg65dgGdDXak'], 'script': '76a914cd0b3a22cd16e182291aa2708c41cb38de5a330788ac'}, 'd37f9e7282f81b7fd3af0fde8b462a1c28024f1d83cf13637ec18d03f4518fe:0': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 29960102, 'addresses': ['1Gy5Djegn51WxHQN4X19FBsUy8RQ74hvYo'], 'script': '76a914af24b3f3e987c23528b366122a7ed2af199b36bc88ac'}, 'd37f9e7282f81b7fd3af0fde8b462a1c28024f1d83cf13637ec18d03f4518feb:0': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 29960102, 'addresses': ['1Gy5Djegn51WxHQN4X19FBsUy8RQ74hvYo'], 'script': '76a914af24b3f3e987c23528b366122a7ed2af199b36bc88ac'}, '0025bc3c0fa8b7eb55b9437fdbd016870d18e0df0ace7bc9864efc38414147c8:0': {'script_type': 'pay-to-pubkey-hash', 'value': 110000000, 'addresses': ['mzx5YhAH9kNHtcN481u6WkjeHjYtVeKVh2'], 'script': '76a914d52ad7ca9b3d096a38e752c2018e6fbc40cdf26f88ac'}, 'd1c789a9c60383bf715f3f6ad9d14b91fe55f3deb369fe5d9280cb1a01793f81:0': {'spent_by': '452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03', 'script_type': 'pay-to-pubkey-hash', 'value': 42505594, 'addresses': ['1GKN6gJBgvet8S92qiQjVxEaVJ5eoJE9s2'], 'script': '76a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac'}, '9e067aedc661fca148e13953df75f8ca6eada9ce3b3d8d68631769ac60999156:1': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 800000, 'addresses': ['1ARzh3A5fgGzbaXkg3novtH8AopzojY79D'], 'script': '76a914677345c7376dfda2c52ad9b6a153b643b6409a3788ac'}, '22874d30bde689475e1df03608aa85a3c7b01e18f8d53aedc1b6df6ded788286:26': {'spent_by': '46df1a9484d0a81d03ce0ee543ab6e1a23ed06175c104a178268fad381216c2b', 'script_type': 'pay-to-script-hash', 'value': 50000000, 'addresses': ['3CLoMMyuoDQTPRD3XYZtCvgvkadrAdvdXh'], 'script': 'a91474d691da1574e6b3c192ecfb52cc8984ee7b6c5687'}, '45f3f79066d251addc04fd889f776c73afab1cb22559376ff820e6166c5e3ad6:1': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 9337330, 'addresses': ['15UecwTDg57tnfSM6Cra8cmZVYavxtTZp2'], 'script': '76a914311b232c3400080eb2636edb8548b47f6835be7688ac'}}
@@ -334,21 +358,18 @@ class TxTest(TestCase):
         want = int('27e0c5994dec7824e56dec6b2fcb342eb7cdb0d0957c2fce9882f715e85d81a6', 16)
         self.assertEqual(tx.hash_to_sign(0, sighash), want)
 
-    @skip('unimplemented')
     def test_verify_input1(self):
         raw_tx = unhexlify('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
         stream = BytesIO(raw_tx)
         tx = Tx.parse(stream)
         self.assertTrue(tx.verify_input(0))
 
-    @skip('unimplemented')
     def test_verify_input2(self):
         raw_tx = unhexlify('0100000001868278ed6ddfb6c1ed3ad5f8181eb0c7a385aa0836f01d5e4789e6bd304d87221a000000db00483045022100dc92655fe37036f47756db8102e0d7d5e28b3beb83a8fef4f5dc0559bddfb94e02205a36d4e4e6c7fcd16658c50783e00c341609977aed3ad00937bf4ee942a8993701483045022100da6bee3c93766232079a01639d07fa869598749729ae323eab8eef53577d611b02207bef15429dcadce2121ea07f233115c6f09034c0be68db99980b9a6c5e75402201475221022626e955ea6ea6d98850c994f9107b036b1334f18ca8830bfff1295d21cfdb702103b287eaf122eea69030a0e9feed096bed8045c8b98bec453e1ffac7fbdbd4bb7152aeffffffff04d3b11400000000001976a914904a49878c0adfc3aa05de7afad2cc15f483a56a88ac7f400900000000001976a914418327e3f3dda4cf5b9089325a4b95abdfa0334088ac722c0c00000000001976a914ba35042cfe9fc66fd35ac2224eebdafd1028ad2788acdc4ace020000000017a91474d691da1574e6b3c192ecfb52cc8984ee7b6c568700000000')
         stream = BytesIO(raw_tx)
         tx = Tx.parse(stream)
         self.assertTrue(tx.verify_input(0))
 
-    @skip('unimplemented')
     def test_sign_input(self):
         private_key = PrivateKey(secret=8675309)
         tx_ins = []
