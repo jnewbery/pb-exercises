@@ -138,6 +138,20 @@ class Tx:
         # return whether sig is valid
         return self.verify_input(input_index)
 
+    def is_coinbase(self):
+        '''Returns whether this transaction is a coinbase transaction or not'''
+        # previous hash is all 0's
+        # previous index is all f's
+        raise NotImplementedError
+
+    def coinbase_height(self):
+        '''Returns the height of the block this coinbase transaction is in
+        Returns None if this transaction is not a coinbase transaction
+        '''
+        # coinbase height is encoded in the first input's script_sig as the
+        # first element encoded in little-endian
+        raise NotImplementedError
+
 
 CACHE = {'75d7454b7010fa28b00f16cccb640b1756fd6e357c03a3b81b9d119505f47b56:0': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 1043341, 'addresses': ['1KhAyQ3kaRQptGwAZghHBjNg65dgGdDXak'], 'script': '76a914cd0b3a22cd16e182291aa2708c41cb38de5a330788ac'}, 'd37f9e7282f81b7fd3af0fde8b462a1c28024f1d83cf13637ec18d03f4518fe:0': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 29960102, 'addresses': ['1Gy5Djegn51WxHQN4X19FBsUy8RQ74hvYo'], 'script': '76a914af24b3f3e987c23528b366122a7ed2af199b36bc88ac'}, 'd37f9e7282f81b7fd3af0fde8b462a1c28024f1d83cf13637ec18d03f4518feb:0': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 29960102, 'addresses': ['1Gy5Djegn51WxHQN4X19FBsUy8RQ74hvYo'], 'script': '76a914af24b3f3e987c23528b366122a7ed2af199b36bc88ac'}, '0025bc3c0fa8b7eb55b9437fdbd016870d18e0df0ace7bc9864efc38414147c8:0': {'script_type': 'pay-to-pubkey-hash', 'value': 110000000, 'addresses': ['mzx5YhAH9kNHtcN481u6WkjeHjYtVeKVh2'], 'script': '76a914d52ad7ca9b3d096a38e752c2018e6fbc40cdf26f88ac'}, 'd1c789a9c60383bf715f3f6ad9d14b91fe55f3deb369fe5d9280cb1a01793f81:0': {'spent_by': '452c629d67e41baec3ac6f04fe744b4b9617f8f859c63b3002f8684e7a4fee03', 'script_type': 'pay-to-pubkey-hash', 'value': 42505594, 'addresses': ['1GKN6gJBgvet8S92qiQjVxEaVJ5eoJE9s2'], 'script': '76a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac'}, '9e067aedc661fca148e13953df75f8ca6eada9ce3b3d8d68631769ac60999156:1': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 800000, 'addresses': ['1ARzh3A5fgGzbaXkg3novtH8AopzojY79D'], 'script': '76a914677345c7376dfda2c52ad9b6a153b643b6409a3788ac'}, '22874d30bde689475e1df03608aa85a3c7b01e18f8d53aedc1b6df6ded788286:26': {'spent_by': '46df1a9484d0a81d03ce0ee543ab6e1a23ed06175c104a178268fad381216c2b', 'script_type': 'pay-to-script-hash', 'value': 50000000, 'addresses': ['3CLoMMyuoDQTPRD3XYZtCvgvkadrAdvdXh'], 'script': 'a91474d691da1574e6b3c192ecfb52cc8984ee7b6c5687'}, '45f3f79066d251addc04fd889f776c73afab1cb22559376ff820e6166c5e3ad6:1': {'spent_by': 'ee51510d7bbabe28052038d1deb10c03ec74f06a79e21913c6fcf48d56217c87', 'script_type': 'pay-to-pubkey-hash', 'value': 9337330, 'addresses': ['15UecwTDg57tnfSM6Cra8cmZVYavxtTZp2'], 'script': '76a914311b232c3400080eb2636edb8548b47f6835be7688ac'}}
 
@@ -394,3 +408,21 @@ class TxTest(TestCase):
             testnet=True,
         )
         self.assertTrue(tx.sign_input(0, private_key, SIGHASH_ALL))
+
+    @skip('unimplemented')
+    def test_is_coinbase(self):
+        raw_tx = unhexlify('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff5e03d71b07254d696e656420627920416e74506f6f6c20626a31312f4542312f4144362f43205914293101fabe6d6d678e2c8c34afc36896e7d9402824ed38e856676ee94bfdb0c6c4bcd8b2e5666a0400000000000000c7270000a5e00e00ffffffff01faf20b58000000001976a914338c84849423992471bffb1a54a8d9b1d69dc28a88ac00000000')
+        stream = BytesIO(raw_tx)
+        tx = Tx.parse(stream)
+        self.assertTrue(tx.is_coinbase())
+
+    @skip('unimplemented')
+    def test_coinbase_height(self):
+        raw_tx = unhexlify('01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff5e03d71b07254d696e656420627920416e74506f6f6c20626a31312f4542312f4144362f43205914293101fabe6d6d678e2c8c34afc36896e7d9402824ed38e856676ee94bfdb0c6c4bcd8b2e5666a0400000000000000c7270000a5e00e00ffffffff01faf20b58000000001976a914338c84849423992471bffb1a54a8d9b1d69dc28a88ac00000000')
+        stream = BytesIO(raw_tx)
+        tx = Tx.parse(stream)
+        self.assertEqual(tx.coinbase_height(), 465879)
+        raw_tx = unhexlify('0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600')
+        stream = BytesIO(raw_tx)
+        tx = Tx.parse(stream)
+        self.assertIsNone(tx.coinbase_height())
