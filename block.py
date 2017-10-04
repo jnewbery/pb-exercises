@@ -1,4 +1,4 @@
-from binascii import unhexlify
+from binascii import hexlify, unhexlify
 from io import BytesIO
 from unittest import TestCase, skip
 
@@ -9,15 +9,30 @@ from helper import (
 )
 
 
+class Proof:
+
+    def __init__(self, merkle_root, tx_hash, index, complementary_hashes):
+        self.merkle_root = merkle_root
+        self.tx_hash = tx_hash
+        self.index = index
+        self.complementary_hashes = complementary_hashes
+
+    def verify(self):
+        '''Returns whether this proof is valid'''
+        raise NotImplementedError
+
+
 class Block:
 
-    def __init__(self, version, prev_block, merkle_root, timestamp, bits, nonce):
+    def __init__(self, version, prev_block, merkle_root, timestamp, bits, nonce, tx_hashes=None):
         self.version = version
         self.prev_block = prev_block
         self.merkle_root = merkle_root
         self.timestamp = timestamp
         self.bits = bits
         self.nonce = nonce
+        self.tx_hashes = tx_hashes
+        self.merkle_tree = None
 
     @classmethod
     def parse(cls, s):
@@ -90,6 +105,16 @@ class Block:
         # hint: int.from_bytes('', 'big')
         s256 = self.hash()
         return int.from_bytes(s256, 'big') < self.target()
+
+    def validate_merkle_root(self):
+        '''Gets the merkle root of the tx_hashes and checks that it's
+        the same as the merkle root of this block.
+        Has side effect of setting self.merkle_tree.
+        '''
+        raise NotImplementedError
+
+    def create_merkle_proof(self, tx_hash):
+        raise NotImplementedError
 
 
 class BlockTest(TestCase):
@@ -166,3 +191,61 @@ class BlockTest(TestCase):
         stream = BytesIO(block_raw)
         block = Block.parse(stream)
         self.assertFalse(block.check_pow())
+
+    @skip('unimplemented')
+    def test_validate_merkle_root(self):
+        hashes_hex = [
+            'f54cb69e5dc1bd38ee6901e4ec2007a5030e14bdd60afb4d2f3428c88eea17c1',
+            'c57c2d678da0a7ee8cfa058f1cf49bfcb00ae21eda966640e312b464414731c1',
+            'b027077c94668a84a5d0e72ac0020bae3838cb7f9ee3fa4e81d1eecf6eda91f3',
+            '8131a1b8ec3a815b4800b43dff6c6963c75193c4190ec946b93245a9928a233d',
+            'ae7d63ffcb3ae2bc0681eca0df10dda3ca36dedb9dbf49e33c5fbe33262f0910',
+            '61a14b1bbdcdda8a22e61036839e8b110913832efd4b086948a6a64fd5b3377d',
+            'fc7051c8b536ac87344c5497595d5d2ffdaba471c73fae15fe9228547ea71881',
+            '77386a46e26f69b3cd435aa4faac932027f58d0b7252e62fb6c9c2489887f6df',
+            '59cbc055ccd26a2c4c4df2770382c7fea135c56d9e75d3f758ac465f74c025b8',
+            '7c2bf5687f19785a61be9f46e031ba041c7f93e2b7e9212799d84ba052395195',
+            '08598eebd94c18b0d59ac921e9ba99e2b8ab7d9fccde7d44f2bd4d5e2e726d2e',
+            'f0bb99ef46b029dd6f714e4b12a7d796258c48fee57324ebdc0bbc4700753ab1',
+        ]
+        hashes = [unhexlify(x) for x in hashes_hex]
+        block = Block(
+            version=536870912,
+            prev_block=unhexlify('0000000000000152991da56898d576fb19395e91e77395dcca08db95789fb1fc'),
+            merkle_root=unhexlify('d6ee6bc8864e5c08a5753d3886148fb1193d4cd2773b568d5df91acc8babbcac'),
+            bits=unhexlify('16ca061a'),
+            timestamp=1504235409,
+            nonce=unhexlify('00000000'),
+            tx_hashes=hashes,
+        )
+        self.assertTrue(block.validate_merkle_root())
+
+    @skip('unimplemented')
+    def test_merkle_proof(self):
+        hashes_hex = [
+            'f54cb69e5dc1bd38ee6901e4ec2007a5030e14bdd60afb4d2f3428c88eea17c1',
+            'c57c2d678da0a7ee8cfa058f1cf49bfcb00ae21eda966640e312b464414731c1',
+            'b027077c94668a84a5d0e72ac0020bae3838cb7f9ee3fa4e81d1eecf6eda91f3',
+            '8131a1b8ec3a815b4800b43dff6c6963c75193c4190ec946b93245a9928a233d',
+            'ae7d63ffcb3ae2bc0681eca0df10dda3ca36dedb9dbf49e33c5fbe33262f0910',
+            '61a14b1bbdcdda8a22e61036839e8b110913832efd4b086948a6a64fd5b3377d',
+            'fc7051c8b536ac87344c5497595d5d2ffdaba471c73fae15fe9228547ea71881',
+            '77386a46e26f69b3cd435aa4faac932027f58d0b7252e62fb6c9c2489887f6df',
+            '59cbc055ccd26a2c4c4df2770382c7fea135c56d9e75d3f758ac465f74c025b8',
+            '7c2bf5687f19785a61be9f46e031ba041c7f93e2b7e9212799d84ba052395195',
+            '08598eebd94c18b0d59ac921e9ba99e2b8ab7d9fccde7d44f2bd4d5e2e726d2e',
+            'f0bb99ef46b029dd6f714e4b12a7d796258c48fee57324ebdc0bbc4700753ab1',
+        ]
+        hashes = [unhexlify(x) for x in hashes_hex]
+        block = Block(
+            version=536870912,
+            prev_block=unhexlify('0000000000000152991da56898d576fb19395e91e77395dcca08db95789fb1fc'),
+            merkle_root=unhexlify('d6ee6bc8864e5c08a5753d3886148fb1193d4cd2773b568d5df91acc8babbcac'),
+            bits=unhexlify('16ca061a'),
+            timestamp=1504235409,
+            nonce=unhexlify('00000000'),
+            tx_hashes=hashes,
+        )
+        h = hashes[7]
+        proof = block.create_merkle_proof(h)
+        self.assertTrue(proof.verify())
