@@ -19,7 +19,13 @@ class Proof:
 
     def verify(self):
         '''Returns whether this proof is valid'''
-        raise NotImplementedError
+        current = self.tx_hash[::-1]
+        for i, complementary_hash in enumerate(self.complementary_hashes):
+            if (self.index >> i) & 1 == 1:
+                current = double_sha256(complementary_hash + current)
+            else:
+                current = double_sha256(current + complementary_hash)
+        return current == self.merkle_root[::-1]
 
 
 class Block:
@@ -111,10 +117,42 @@ class Block:
         the same as the merkle root of this block.
         Has side effect of setting self.merkle_tree.
         '''
-        raise NotImplementedError
+        if self.tx_hashes is None:
+            return None
+        self.merkle_tree = []
+        current_level = [x[::-1] for x in self.tx_hashes]
+        if len(current_level) != 1 and len(current_level) % 2 == 1:
+            current_level.append(current_level[-1])
+        self.merkle_tree.append(current_level)
+        while len(current_level) > 1:
+            next_level = [double_sha256(current_level[i] + current_level[i+1]) for i in range(0, len(current_level), 2)]
+            if len(next_level) != 1 and len(next_level) % 2 == 1:
+                next_level.append(next_level[-1])
+            self.merkle_tree.append(next_level)
+            current_level = next_level
+        return current_level[0][::-1] == self.merkle_root
 
     def create_merkle_proof(self, tx_hash):
-        raise NotImplementedError
+        if self.tx_hashes is None:
+            return None
+        elif self.merkle_tree is None:
+            self.validate_merkle_root()
+        item_num = self.merkle_tree[0].index(tx_hash[::-1])
+        index = item_num
+        current = self.merkle_tree[0][item_num]
+        complementary_hashes = []
+        for level in self.merkle_tree[:-1]:
+            if item_num % 2 == 0:
+                current = double_sha256(current + level[item_num+1])
+                complementary_hashes.append(level[item_num + 1])
+            else:
+                current = double_sha256(level[item_num-1] + current)
+                complementary_hashes.append(level[item_num - 1])
+            item_num = item_num // 2
+        # sanity check
+        if current != self.merkle_tree[-1][0]:
+            raise RuntimeError('merkle tree looks invalid')
+        return Proof(self.merkle_root, tx_hash, index, complementary_hashes)
 
 
 class BlockTest(TestCase):
@@ -192,7 +230,6 @@ class BlockTest(TestCase):
         block = Block.parse(stream)
         self.assertFalse(block.check_pow())
 
-    @skip('unimplemented')
     def test_validate_merkle_root(self):
         hashes_hex = [
             'f54cb69e5dc1bd38ee6901e4ec2007a5030e14bdd60afb4d2f3428c88eea17c1',
@@ -220,7 +257,6 @@ class BlockTest(TestCase):
         )
         self.assertTrue(block.validate_merkle_root())
 
-    @skip('unimplemented')
     def test_merkle_proof(self):
         hashes_hex = [
             'f54cb69e5dc1bd38ee6901e4ec2007a5030e14bdd60afb4d2f3428c88eea17c1',
