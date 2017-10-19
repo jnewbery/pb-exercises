@@ -70,7 +70,7 @@ class TxOut:
         raise NotImplementedError
 
     
-class TxTest(TestCase):
+class TxTest1(TestCase):
 
     @skip('unimplemented')
     def test_parse_version(self):
@@ -78,6 +78,8 @@ class TxTest(TestCase):
         stream = BytesIO(raw_tx)
         tx = Tx.parse(stream)
         self.assertEqual(tx.version, 1)
+
+class TxTest2(TestCase):
 
     @skip('unimplemented')
     def test_parse_inputs(self):
@@ -91,6 +93,8 @@ class TxTest(TestCase):
         want = unhexlify('483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278a')
         self.assertEqual(tx.tx_ins[0].script_sig, want)
         self.assertEqual(tx.tx_ins[0].sequence, 0xfffffffe)
+
+class TxTest3(TestCase):
 
     @skip('unimplemented')
     def test_parse_outputs(self):
@@ -106,6 +110,8 @@ class TxTest(TestCase):
         self.assertEqual(tx.tx_outs[1].amount, want)
         want = unhexlify('76a9141c4bc762dd5423e332166702cb75f40df79fea1288ac')
         self.assertEqual(tx.tx_outs[1].script_pubkey, want)
+
+class TxTest4(TestCase):
 
     @skip('unimplemented')
     def test_parse_locktime(self):
